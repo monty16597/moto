@@ -616,7 +616,7 @@ class CloudFormationBackend(BaseBackend):
 
         self._validate_export_uniqueness(new_stack)
         # Note: disable setting the exports here - done instead after the deployment loop has finished
-        # self.set_exports(new_stack)
+        self.set_exports(new_stack)
         return new_stack
 
     def set_exports(self, new_stack):

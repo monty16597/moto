@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 import boto3
 import json
+
+import pytest
 import yaml
 
 import sure  # noqa
@@ -181,6 +183,7 @@ def test_parse_stack_resources():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.resource_map.should.have.length_of(2)
 
@@ -207,6 +210,7 @@ def test_parse_stack_with_name_type_resource():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.resource_map.should.have.length_of(1)
     list(stack.resource_map.keys())[0].should.equal("Queue")
@@ -222,6 +226,7 @@ def test_parse_stack_with_tabbed_json_template():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.resource_map.should.have.length_of(1)
     list(stack.resource_map.keys())[0].should.equal("Queue")
@@ -237,6 +242,7 @@ def test_parse_stack_with_yaml_template():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.resource_map.should.have.length_of(1)
     list(stack.resource_map.keys())[0].should.equal("Queue")
@@ -252,6 +258,7 @@ def test_parse_stack_with_outputs():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.output_map.should.have.length_of(1)
     list(stack.output_map.keys())[0].should.equal("Output1")
@@ -268,6 +275,7 @@ def test_parse_stack_with_get_attribute_outputs():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.output_map.should.have.length_of(1)
     list(stack.output_map.keys())[0].should.equal("Output1")
@@ -287,6 +295,7 @@ def test_parse_stack_with_get_attribute_kms():
         parameters={},
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.output_map.should.have.length_of(1)
     list(stack.output_map.keys())[0].should.equal("KeyArn")
@@ -302,6 +311,7 @@ def test_parse_stack_with_get_availability_zones():
         parameters={},
         region_name="us-east-1",
     )
+    stack.initialize_resources()
 
     stack.output_map.should.have.length_of(1)
     list(stack.output_map.keys())[0].should.equal("Output1")
@@ -311,10 +321,9 @@ def test_parse_stack_with_get_availability_zones():
 
 
 def test_parse_stack_with_bad_get_attribute_outputs():
-    FakeStack.when.called_with(
-        "test_id", "test_stack", bad_output_template_json, {}, "us-west-1"
-    ).should.throw(ValidationError)
-
+    with pytest.raises(ValidationError):
+        stack = FakeStack("test_id", "test_stack", bad_output_template_json, {}, "us-west-1")
+        stack.initialize_resources()
 
 def test_parse_stack_with_parameters():
     stack = FakeStack(
@@ -329,6 +338,7 @@ def test_parse_stack_with_parameters():
         },
         region_name="us-west-1",
     )
+    stack.initialize_resources()
 
     stack.resource_map.no_echo_parameter_keys.should.have("NoEchoParam")
     stack.resource_map.no_echo_parameter_keys.should_not.have("Param")
@@ -535,6 +545,7 @@ def test_ssm_parameter_parsing():
             },
             region_name="us-west-1",
         )
+        stack.initialize_resources()
 
         stack.resource_map.resolved_parameters["SingleParamCfn"].should.equal("string")
         stack.resource_map.resolved_parameters["ListParamCfn"].should.equal(
@@ -550,6 +561,7 @@ def test_ssm_parameter_parsing():
             parameters={"SingleParamCfn": "/path/to/single/param",},
             region_name="us-west-1",
         )
+        stack.initialize_resources()
 
         stack.resource_map.resolved_parameters["SingleParamCfn"].should.equal("string")
         stack.resource_map.resolved_parameters["ListParamCfn"].should.equal(
