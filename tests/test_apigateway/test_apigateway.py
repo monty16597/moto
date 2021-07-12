@@ -474,13 +474,7 @@ def test_integrations():
     response.should.equal(
         {
             "ResponseMetadata": {"HTTPStatusCode": 200},
-            "httpMethod": "GET",
-            "integrationResponses": {
-                "200": {
-                    "responseTemplates": {"application/json": None},
-                    "statusCode": 200,
-                }
-            },
+            "httpMethod": "POST",
             "type": "HTTP",
             "uri": "http://httpbin.org/robots.txt",
         }
@@ -495,13 +489,7 @@ def test_integrations():
     response.should.equal(
         {
             "ResponseMetadata": {"HTTPStatusCode": 200},
-            "httpMethod": "GET",
-            "integrationResponses": {
-                "200": {
-                    "responseTemplates": {"application/json": None},
-                    "statusCode": 200,
-                }
-            },
+            "httpMethod": "POST",
             "type": "HTTP",
             "uri": "http://httpbin.org/robots.txt",
         }
