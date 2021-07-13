@@ -919,4 +919,4 @@ def test_describe_vpc_end_points():
             VpcEndpointIds=[route_table.get("RouteTable").get("RouteTableId")]
         )
     except ClientError as err:
-        assert err.response["Error"]["Code"] == "InvalidVpcEndPointId.NotFound"
+        assert err.response["Error"]["Code"] == "InvalidVpcEndpointId.NotFound"
