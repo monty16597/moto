@@ -322,8 +322,11 @@ def test_parse_stack_with_get_availability_zones():
 
 def test_parse_stack_with_bad_get_attribute_outputs():
     with pytest.raises(ValidationError):
-        stack = FakeStack("test_id", "test_stack", bad_output_template_json, {}, "us-west-1")
+        stack = FakeStack(
+            "test_id", "test_stack", bad_output_template_json, {}, "us-west-1"
+        )
         stack.initialize_resources()
+
 
 def test_parse_stack_with_parameters():
     stack = FakeStack(
