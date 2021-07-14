@@ -3,8 +3,7 @@ SHELL := /bin/bash
 ifeq ($(TEST_SERVER_MODE), true)
 	# exclude test_kinesisvideoarchivedmedia
 	# because testing with moto_server is difficult with data-endpoint
-
-	TEST_EXCLUDE :=  -k 'not test_kinesisvideoarchivedmedia' -k 'not test_cloudformation'
+	TEST_EXCLUDE := -k 'not test_kinesisvideoarchivedmedia and not test_cloudformation'
 else
 	TEST_EXCLUDE := -k 'not test_cloudformation' # exclude from ci
 endif
@@ -34,7 +33,7 @@ test-coverage:
 test: lint test-only
 
 test_server:
-	@TEST_SERVER_MODE=true pytest -sv --cov=moto --cov-report xml ./tests/
+	@TEST_SERVER_MODE=true pytest -sv --cov=moto --cov-report xml ./tests/ -k 'not test_kinesisvideoarchivedmedia and not test_cloudformation'
 
 aws_managed_policies:
 	scripts/update_managed_policies.py
