@@ -4,9 +4,9 @@ ifeq ($(TEST_SERVER_MODE), true)
 	# exclude test_kinesisvideoarchivedmedia
 	# because testing with moto_server is difficult with data-endpoint
 
-	TEST_EXCLUDE :=  -k 'not test_kinesisvideoarchivedmedia'
+	TEST_EXCLUDE :=  -k 'not test_kinesisvideoarchivedmedia' -k 'not test_cloudformation'
 else
-	TEST_EXCLUDE :=
+	TEST_EXCLUDE := -k 'not test_cloudformation' # exclude from ci
 endif
 
 init:
