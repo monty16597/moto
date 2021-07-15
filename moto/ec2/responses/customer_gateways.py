@@ -19,7 +19,7 @@ class CustomerGateways(BaseResponse):
         customer_gateway_id = self._get_param("CustomerGatewayId")
         delete_status = self.ec2_backend.delete_customer_gateway(customer_gateway_id)
         template = self.response_template(DELETE_CUSTOMER_GATEWAY_RESPONSE)
-        return template.render(customer_gateway=delete_status)
+        return template.render(delete_status=delete_status)
 
     def describe_customer_gateways(self):
         filters = filters_from_querystring(self.querystring)
@@ -33,7 +33,7 @@ CREATE_CUSTOMER_GATEWAY_RESPONSE = """
    <requestId>7a62c49f-347e-4fc4-9331-6e8eEXAMPLE</requestId>
    <customerGateway>
       <customerGatewayId>{{ customer_gateway.id }}</customerGatewayId>
-      <state>pending</state>
+      <state>{{ customer_gateway.state }}</state>
       <type>{{ customer_gateway.type }}</type>
       <ipAddress>{{ customer_gateway.ip_address }}</ipAddress>
       <bgpAsn>{{ customer_gateway.bgp_asn }}</bgpAsn>
@@ -64,7 +64,7 @@ DESCRIBE_CUSTOMER_GATEWAYS_RESPONSE = """
     <item>
        <customerGatewayId>{{ customer_gateway.id }}</customerGatewayId>
        <state>{{ customer_gateway.state }}</state>
-       <type>available</type>
+       <type>{{ customer_gateway.type }}</type>
        <ipAddress>{{ customer_gateway.ip_address }}</ipAddress>
        <bgpAsn>{{ customer_gateway.bgp_asn }}</bgpAsn>
     <tagSet>
