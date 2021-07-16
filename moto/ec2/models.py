@@ -5824,7 +5824,7 @@ class VpnGatewayBackend(object):
 
 
 class CustomerGateway(TaggedEC2Resource):
-    def __init__(self, ec2_backend, id, type, ip_address, bgp_asn, state="available"):
+    def __init__(self, ec2_backend, id, type, ip_address, bgp_asn, state="available", tags=[]):
         self.ec2_backend = ec2_backend
         self.id = id
         self.type = type
@@ -5832,6 +5832,7 @@ class CustomerGateway(TaggedEC2Resource):
         self.bgp_asn = bgp_asn
         self.attachments = {}
         self.state = state
+        self.add_tags(tags or {})
         super(CustomerGateway, self).__init__()
 
     def get_filter_value(self, filter_name):
@@ -5845,10 +5846,10 @@ class CustomerGatewayBackend(object):
         self.customer_gateways = {}
         super(CustomerGatewayBackend, self).__init__()
 
-    def create_customer_gateway(self, type="ipsec.1", ip_address=None, bgp_asn=None):
+    def create_customer_gateway(self, type="ipsec.1", ip_address=None, bgp_asn=None, tags=[]):
         customer_gateway_id = random_customer_gateway_id()
         customer_gateway = CustomerGateway(
-            self, customer_gateway_id, type, ip_address, bgp_asn
+            self, customer_gateway_id, type, ip_address, bgp_asn, tags=tags
         )
         self.customer_gateways[customer_gateway_id] = customer_gateway
         return customer_gateway
