@@ -6128,7 +6128,7 @@ class TransitGatewayRouteTableBackend(object):
                 for key in transit_gateway_route_table.routes:
                     if transit_gateway_route_table.routes[key]['state'] in filters.get("state"):
                         routes.append(transit_gateway_route_table.routes[key])
-            elif filters.get("type") is not None:
+            if filters.get("type") is not None:
                 for key in transit_gateway_route_table.routes:
                     if transit_gateway_route_table.routes[key]['type'] in filters.get("type"):
                         routes.append(transit_gateway_route_table.routes[key])
