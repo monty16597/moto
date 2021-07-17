@@ -44,7 +44,6 @@ class TransitGatewayRouteTable(BaseResponse):
         )
         template = self.response_template(CREATE_TRANSIT_GATEWAY_ROUTE_RESPONSE)
         return template.render(transit_gateway_route_table=transit_gateways_route_table, destination_cidr_block=destination_cidr_block)
-
     def delete_transit_gateway_route(self):
         destination_cidr_block = self._get_param("DestinationCidrBlock")
         transit_gateway_route_table_id = self._get_param("TransitGatewayRouteTableId")
