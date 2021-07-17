@@ -6012,6 +6012,7 @@ class TransitGatewayRouteTable(TaggedEC2Resource):
         self.default_association_route_table = default_association_route_table
         self.default_propagation_route_table = default_propagation_route_table
         self.state = "available"
+        self.routes = {}
         self.add_tags(tags or {})
 
     @property
@@ -6088,6 +6089,50 @@ class TransitGatewayRouteTableBackend(object):
 
     def delete_transit_gateway_route_table(self, transit_gateway_route_table_id):
         return self.transit_gateways_route_tables.pop(transit_gateway_route_table_id)
+    
+    def create_transit_gateway_route(
+        self,
+        transit_gateway_route_table_id,
+        destination_cidr_block,
+        transit_gateway_attachment_id=None,
+        blackhole=False
+    ):
+        transit_gateways_route_table = self.transit_gateways_route_tables[transit_gateway_route_table_id]
+        transit_gateways_route_table.routes[destination_cidr_block] = {
+            "destinationCidrBlock": destination_cidr_block,
+            "prefixListId": "random()",
+            "state": "blackhole" if blackhole else "active",
+            "transitGatewayAttachments": {
+                "resourceId": "String",
+                "resourceType": "vpc | vpn | direct-connect-gateway | connect | peering | tgw-peering",
+                "transitGatewayAttachmentId": transit_gateway_attachment_id,
+            },
+            "type": "static"
+        }
+        return transit_gateways_route_table
+
+    def delete_transit_gateway_route(
+        self,
+        transit_gateway_route_table_id,
+        destination_cidr_block,
+    ):
+        transit_gateways_route_table = self.transit_gateways_route_tables[transit_gateway_route_table_id]
+        transit_gateways_route_table.routes[destination_cidr_block]['state'] = "deleted"
+        return transit_gateways_route_table
+    
+    def search_transit_gateway_routes(self,transit_gateway_route_table_id,filters,max_results=None):
+        transit_gateway_route_table = self.transit_gateways_route_tables[transit_gateway_route_table_id]
+        routes = []
+        if filters is not None:
+            if filters.get("state") is not None:
+                for key in transit_gateway_route_table.routes:
+                    if transit_gateway_route_table.routes[key]['state'] in filters.get("state"):
+                        routes.append(transit_gateway_route_table.routes[key])
+            elif filters.get("type") is not None:
+                for key in transit_gateway_route_table.routes:
+                    if transit_gateway_route_table.routes[key]['type'] in filters.get("type"):
+                        routes.append(transit_gateway_route_table.routes[key])
+        return routes
 
 
 class NatGateway(CloudFormationModel):
