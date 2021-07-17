@@ -5427,7 +5427,7 @@ class DHCPOptionsSetBackend(object):
 
 
 class VPNConnection(TaggedEC2Resource):
-    def __init__(self, ec2_backend, id, type, customer_gateway_id, vpn_gateway_id):
+    def __init__(self, ec2_backend, id, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None):
         self.ec2_backend = ec2_backend
         self.id = id
         self.state = "available"
@@ -5435,9 +5435,11 @@ class VPNConnection(TaggedEC2Resource):
         self.type = type
         self.customer_gateway_id = customer_gateway_id
         self.vpn_gateway_id = vpn_gateway_id
+        self.transit_gateway_id = transit_gateway_id
         self.tunnels = None
         self.options = None
         self.static_routes = None
+        self.state = "available"
 
     def get_filter_value(self, filter_name):
         return super(VPNConnection, self).get_filter_value(
@@ -5451,7 +5453,7 @@ class VPNConnectionBackend(object):
         super(VPNConnectionBackend, self).__init__()
 
     def create_vpn_connection(
-        self, type, customer_gateway_id, vpn_gateway_id, static_routes_only=None
+        self, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None, static_routes_only=None
     ):
         vpn_connection_id = random_vpn_connection_id()
         if static_routes_only:
@@ -5461,6 +5463,7 @@ class VPNConnectionBackend(object):
             id=vpn_connection_id,
             type=type,
             customer_gateway_id=customer_gateway_id,
+            transit_gateway_id=transit_gateway_id,
             vpn_gateway_id=vpn_gateway_id,
         )
         self.vpn_connections[vpn_connection.id] = vpn_connection
@@ -5469,7 +5472,8 @@ class VPNConnectionBackend(object):
     def delete_vpn_connection(self, vpn_connection_id):
 
         if vpn_connection_id in self.vpn_connections:
-            self.vpn_connections.pop(vpn_connection_id)
+            # self.vpn_connections.pop(vpn_connection_id)
+            self.vpn_connections[vpn_connection_id].state = "deleted"
         else:
             raise InvalidVpnConnectionIdError(vpn_connection_id)
         return True
