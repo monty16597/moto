@@ -6,6 +6,11 @@ import six
 if six.PY2:
     from io import open
 
+def str2bool(v):
+    if v.lower() in ("yes", True, "true", "True", "TRUE", "t", "1"):
+        return True
+    elif v.lower() in ("no", False, "false", "False", "FALSE", "f", "0"):
+        return False
 
 def random_string(length=None):
     n = length or 20

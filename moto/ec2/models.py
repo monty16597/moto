@@ -6087,7 +6087,7 @@ class TransitGatewayRouteTableBackend(object):
         transit_gateways_route_table = self.transit_gateways_route_tables[transit_gateway_route_table_id]
         transit_gateways_route_table.routes[destination_cidr_block] = {
             "destinationCidrBlock": destination_cidr_block,
-            "prefixListId": "random()",
+            "prefixListId": "",
             "state": "blackhole" if blackhole else "active",
             "transitGatewayAttachments": {
                 "resourceId": "String",
@@ -6109,16 +6109,21 @@ class TransitGatewayRouteTableBackend(object):
 
     def search_transit_gateway_routes(self, transit_gateway_route_table_id, filters, max_results=None):
         transit_gateway_route_table = self.transit_gateways_route_tables[transit_gateway_route_table_id]
-        routes = []
-        if filters is not None:
-            if filters.get("state") is not None:
-                for key in transit_gateway_route_table.routes:
-                    if transit_gateway_route_table.routes[key]['state'] in filters.get("state"):
-                        routes.append(transit_gateway_route_table.routes[key])
-            if filters.get("type") is not None:
-                for key in transit_gateway_route_table.routes:
-                    if transit_gateway_route_table.routes[key]['type'] in filters.get("type"):
-                        routes.append(transit_gateway_route_table.routes[key])
+
+        attr_pairs = (
+            ("type", "type"),
+            ("state", "state"),
+        )
+
+        for attrs in attr_pairs:
+            values = filters.get(attrs[0]) or None
+            if values:
+                routes = [
+                    transit_gateway_route_table.routes[key] for key in transit_gateway_route_table.routes
+                    if transit_gateway_route_table.routes[key][attrs[1]] in values
+                ]
+        if max_results:
+            routes = routes[:int(max_results)]
         return routes
 
 

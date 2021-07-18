@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 from moto.core.responses import BaseResponse
 from moto.ec2.utils import filters_from_querystring
-
+from moto.utilities.utils import str2bool
 
 class TransitGatewayRouteTable(BaseResponse):
     def create_transit_gateway_route_table(self):
@@ -34,7 +34,7 @@ class TransitGatewayRouteTable(BaseResponse):
         transit_gateway_attachment_id = self._get_param("TransitGatewayAttachmentId")
         destination_cidr_block = self._get_param("DestinationCidrBlock")
         transit_gateway_route_table_id = self._get_param("TransitGatewayRouteTableId")
-        blackhole = True if self._get_param("Blackhole") else False
+        blackhole = str2bool(self._get_param("Blackhole"))
         transit_gateways_route_table = self.ec2_backend.create_transit_gateway_route(
             destination_cidr_block=destination_cidr_block,
             transit_gateway_route_table_id=transit_gateway_route_table_id,
