@@ -10,7 +10,6 @@ class VPNConnections(BaseResponse):
         cgw_id = self._get_param("CustomerGatewayId")
         vgw_id = self._get_param("VpnGatewayId")
         tgw_id = self._get_param("TransitGatewayId")
-        print('==============================',tgw_id)
         static_routes = self._get_param("StaticRoutesOnly")
         vpn_connection = self.ec2_backend.create_vpn_connection(
             type, cgw_id, vpn_gateway_id=vgw_id, transit_gateway_id=tgw_id, static_routes_only=static_routes
@@ -156,8 +155,8 @@ CREATE_VPN_CONNECTION_RESPONSE = """
     <vpnConnectionId>{{ vpn_connection.id }}</vpnConnectionId>
     <state>{{ vpn_connection.state }}</state>
       <customerGatewayConfiguration>
-""" + escape(CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE) + \
-"""
+    """ + escape(CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE) + \
+    """
       </customerGatewayConfiguration>
     <type>ipsec.1</type>
     <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
@@ -204,8 +203,8 @@ DESCRIBE_VPN_CONNECTION_RESPONSE = """
       <vpnConnectionId>{{ vpn_connection.id }}</vpnConnectionId>
       <state>{{ vpn_connection.state }}</state>
       <customerGatewayConfiguration>
-""" + escape(CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE) + \
-"""
+    """ + escape(CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE) + \
+    """
       </customerGatewayConfiguration>
       <type>ipsec.1</type>
       <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
