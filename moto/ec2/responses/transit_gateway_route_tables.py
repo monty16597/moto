@@ -3,6 +3,7 @@ from moto.core.responses import BaseResponse
 from moto.ec2.utils import filters_from_querystring
 from moto.utilities.utils import str2bool
 
+
 class TransitGatewayRouteTable(BaseResponse):
     def create_transit_gateway_route_table(self):
         transit_gateway_id = self._get_param("TransitGatewayId")
