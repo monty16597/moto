@@ -6089,12 +6089,13 @@ class TransitGatewayRouteTableBackend(object):
             "destinationCidrBlock": destination_cidr_block,
             "prefixListId": "",
             "state": "blackhole" if blackhole else "active",
+            # TODO: needs to be fixed once we have support for transit gateway attachments
             "transitGatewayAttachments": {
-                "resourceId": "String",
-                "resourceType": "vpc | vpn | direct-connect-gateway | connect | peering | tgw-peering",
+                "resourceId": "TODO",
+                "resourceType": "TODO",
                 "transitGatewayAttachmentId": transit_gateway_attachment_id,
             },
-            "type": "static"
+            "type": "TODO"
         }
         return transit_gateways_route_table
 
