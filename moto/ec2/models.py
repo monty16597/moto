@@ -6269,7 +6269,7 @@ class TransitGatewayAttachmentBackend(object):
                         if getattr(transit_gateways_attachment, attrs[1]) in values
                     ]
         return transit_gateways_attachments
-    
+
     def describe_transit_gateway_vpc_attachments(self, transit_gateways_attachment_ids=None, filters=None, max_results=0):
         transit_gateways_attachments = self.transit_gateways_attachments.values()
 
