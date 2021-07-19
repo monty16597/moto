@@ -5819,8 +5819,10 @@ class VpnGatewayBackend(object):
         return attachment
 
     def delete_vpn_gateway(self, vpn_gateway_id):
-        self.vpn_gateways[vpn_gateway_id].state = "deleted"
-        return self.vpn_gateways[vpn_gateway_id]
+        deleted = self.vpn_gateways.pop(vpn_gateway_id, None)
+        if not deleted:
+            raise InvalidVpnGatewayIdError(vpn_gateway_id)
+        return deleted
 
     def detach_vpn_gateway(self, vpn_gateway_id, vpc_id):
         vpn_gateway = self.get_vpn_gateway(vpn_gateway_id)
