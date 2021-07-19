@@ -170,8 +170,10 @@ CREATE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
     <type>ipsec.1</type>
     <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-    <vpnGatewayId> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpnGatewayId>
-    <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not in none }}</transitGatewayId>
+    <vpnGatewayId> {{ vpn_connection.vpn_gateway_id or '' }} </vpnGatewayId>
+    {% if vpn_connection.transit_gateway_id %}
+    <transitGatewayId>{{ vpn_connection.transit_gateway_id }}</transitGatewayId>
+    {% endif %}
     <tagSet>
     {% for tag in vpn_connection.get_tags() %}
       <item>
@@ -216,8 +218,10 @@ DESCRIBE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
       <type>ipsec.1</type>
       <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-      <vpnGatewayId> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpnGatewayId>
-      <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not none }}</transitGatewayId>
+      <vpnGatewayId> {{ vpn_connection.vpn_gateway_id or '' }} </vpnGatewayId>
+      {% if vpn_connection.transit_gateway_id %}
+      <transitGatewayId>{{ vpn_connection.transit_gateway_id }}</transitGatewayId>
+      {% endif %}
       <tagSet>
       {% for tag in vpn_connection.get_tags() %}
         <item>

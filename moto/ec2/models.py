@@ -5427,7 +5427,7 @@ class DHCPOptionsSetBackend(object):
 
 
 class VPNConnection(TaggedEC2Resource):
-    def __init__(self, ec2_backend, id, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None, tags=None):
+    def __init__(self, ec2_backend, id, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None, tags={}):
         self.ec2_backend = ec2_backend
         self.id = id
         self.state = "available"
@@ -5453,8 +5453,7 @@ class VPNConnectionBackend(object):
         super(VPNConnectionBackend, self).__init__()
 
     def create_vpn_connection(
-        self, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None, static_routes_only=None, tags=None
-    ):
+            self, type, customer_gateway_id, vpn_gateway_id=None, transit_gateway_id=None, static_routes_only=None, tags={}):
         vpn_connection_id = random_vpn_connection_id()
         if static_routes_only:
             pass
@@ -5759,10 +5758,14 @@ class NetworkAclEntry(TaggedEC2Resource):
 
 
 class VpnGateway(TaggedEC2Resource):
-    def __init__(self, ec2_backend, id, type):
+    def __init__(self, ec2_backend, id, type, amazon_side_asn, availability_zone, tags=None, state="available"):
         self.ec2_backend = ec2_backend
         self.id = id
         self.type = type
+        self.amazon_side_asn = amazon_side_asn
+        self.availability_zone = availability_zone
+        self.state = state
+        self.add_tags(tags or {})
         self.attachments = {}
         super(VpnGateway, self).__init__()
 
@@ -5792,9 +5795,9 @@ class VpnGatewayBackend(object):
         self.vpn_gateways = {}
         super(VpnGatewayBackend, self).__init__()
 
-    def create_vpn_gateway(self, type="ipsec.1"):
+    def create_vpn_gateway(self, type="ipsec.1", amazon_side_asn=None, availability_zone=None, tags=None):
         vpn_gateway_id = random_vpn_gateway_id()
-        vpn_gateway = VpnGateway(self, vpn_gateway_id, type)
+        vpn_gateway = VpnGateway(self, vpn_gateway_id, type, amazon_side_asn, availability_zone, tags)
         self.vpn_gateways[vpn_gateway_id] = vpn_gateway
         return vpn_gateway
 
@@ -5816,10 +5819,8 @@ class VpnGatewayBackend(object):
         return attachment
 
     def delete_vpn_gateway(self, vpn_gateway_id):
-        deleted = self.vpn_gateways.pop(vpn_gateway_id, None)
-        if not deleted:
-            raise InvalidVpnGatewayIdError(vpn_gateway_id)
-        return deleted
+        self.vpn_gateways[vpn_gateway_id].state = "deleted"
+        return self.vpn_gateways[vpn_gateway_id]
 
     def detach_vpn_gateway(self, vpn_gateway_id, vpc_id):
         vpn_gateway = self.get_vpn_gateway(vpn_gateway_id)
