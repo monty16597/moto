@@ -18,7 +18,8 @@ class VPNConnections(BaseResponse):
         vpn_connection = self.ec2_backend.create_vpn_connection(
             type, cgw_id, vpn_gateway_id=vgw_id, transit_gateway_id=tgw_id, static_routes_only=static_routes, tags=tags
         )
-        self.ec2_backend.create_transit_gateway_vpn_attachment(vpn_id=vpn_connection.id, transit_gateway_id=tgw_id)
+        if vpn_connection.transit_gateway_id:
+            self.ec2_backend.create_transit_gateway_vpn_attachment(vpn_id=vpn_connection.id, transit_gateway_id=tgw_id)
         template = self.response_template(CREATE_VPN_CONNECTION_RESPONSE)
         return template.render(vpn_connection=vpn_connection)
 
@@ -170,7 +171,7 @@ CREATE_VPN_CONNECTION_RESPONSE = """
     <type>ipsec.1</type>
     <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
     <vpnGatewayId> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpnGatewayId>
-    <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not none }}</transitGatewayId>
+    <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not in none }}</transitGatewayId>
     <tagSet>
     {% for tag in vpn_connection.get_tags() %}
       <item>
