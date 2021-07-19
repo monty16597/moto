@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from xml.sax.saxutils import escape
 from moto.core.responses import BaseResponse
 from moto.ec2.utils import filters_from_querystring
 from xml.sax.saxutils import escape
@@ -11,15 +12,25 @@ class VPNConnections(BaseResponse):
         vgw_id = self._get_param("VpnGatewayId")
         tgw_id = self._get_param("TransitGatewayId")
         static_routes = self._get_param("StaticRoutesOnly")
+        tags = self._get_multi_param("TagSpecification")
+        tags = tags[0] if isinstance(tags, list) and len(tags) == 1 else tags
+        tags = (tags or {}).get("Tag", [])
+        tags = {t["Key"]: t["Value"] for t in tags}
         vpn_connection = self.ec2_backend.create_vpn_connection(
-            type, cgw_id, vpn_gateway_id=vgw_id, transit_gateway_id=tgw_id, static_routes_only=static_routes
+            type, cgw_id, vpn_gateway_id=vgw_id, transit_gateway_id=tgw_id, static_routes_only=static_routes, tags=tags
         )
+        self.ec2_backend.create_transit_gateway_vpn_attachment(vpn_id=vpn_connection.id, transit_gateway_id=tgw_id)
         template = self.response_template(CREATE_VPN_CONNECTION_RESPONSE)
         return template.render(vpn_connection=vpn_connection)
 
     def delete_vpn_connection(self):
         vpn_connection_id = self._get_param("VpnConnectionId")
         vpn_connection = self.ec2_backend.delete_vpn_connection(vpn_connection_id)
+        if vpn_connection.transit_gateway_id:
+            transit_gateway_attachments = self.ec2_backend.describe_transit_gateway_attachments()
+            for attachment in transit_gateway_attachments:
+                if attachment.resource_id == vpn_connection.id:
+                    attachment.state = "deleted"
         template = self.response_template(DELETE_VPN_CONNECTION_RESPONSE)
         return template.render(vpn_connection=vpn_connection)
 
@@ -36,7 +47,7 @@ class VPNConnections(BaseResponse):
 CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE = """
           <vpn_connection id="{{ vpn_connection.id }}">
           <customer_gateway_id>{{ vpn_connection.customer_gateway_id }}</customer_gateway_id>
-          <vpn_gateway_id>{{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id != None }}</vpn_gateway_id>
+          <vpn_gateway_id> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpn_gateway_id>
           <vpn_connection_type>{{ vpn_connection.type }}</vpn_connection_type>
           <ipsec_tunnel>
             <customer_gateway>
@@ -147,7 +158,6 @@ CUSTOMER_GATEWAY_CONFIGURATION_TEMPLATE = """
         </vpn_connection>
 """
 
-
 CREATE_VPN_CONNECTION_RESPONSE = """
 <CreateVpnConnectionResponse xmlns="http://ec2.amazonaws.com/doc/2013-10-15/">
   <requestId>7a62c49f-347e-4fc4-9331-6e8eEXAMPLE</requestId>
@@ -160,13 +170,11 @@ CREATE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
     <type>ipsec.1</type>
     <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-    <vpnGatewayId>{{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id != None }}</vpnGatewayId>
-    <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id != None }}</transitGatewayId>
+    <vpnGatewayId> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpnGatewayId>
+    <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not none }}</transitGatewayId>
     <tagSet>
     {% for tag in vpn_connection.get_tags() %}
       <item>
-        <resourceId>{{ tag.resource_id }}</resourceId>
-        <resourceType>{{ tag.resource_type }}</resourceType>
         <key>{{ tag.key }}</key>
         <value>{{ tag.value }}</value>
       </item>
@@ -208,13 +216,11 @@ DESCRIBE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
       <type>ipsec.1</type>
       <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-      <vpnGatewayId>{{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id != None }}</vpnGatewayId>
-      <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id != None }}</transitGatewayId>
+      <vpnGatewayId> {{ vpn_connection.vpn_gateway_id if vpn_connection.vpn_gateway_id is not none }} </vpnGatewayId>
+      <transitGatewayId>{{ vpn_connection.transit_gateway_id if vpn_connection.transit_gateway_id is not none }}</transitGatewayId>
       <tagSet>
       {% for tag in vpn_connection.get_tags() %}
         <item>
-          <resourceId>{{ tag.resource_id }}</resourceId>
-          <resourceType>{{ tag.resource_type }}</resourceType>
           <key>{{ tag.key }}</key>
           <value>{{ tag.value }}</value>
         </item>
