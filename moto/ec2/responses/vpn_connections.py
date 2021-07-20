@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from moto.core.responses import BaseResponse
-from moto.ec2.utils import filters_from_querystring
+from moto.ec2.utils import filters_from_querystring, add_tag_specification
 from xml.sax.saxutils import escape
 
 
@@ -11,10 +11,7 @@ class VPNConnections(BaseResponse):
         vgw_id = self._get_param("VpnGatewayId")
         tgw_id = self._get_param("TransitGatewayId")
         static_routes = self._get_param("StaticRoutesOnly")
-        tags = self._get_multi_param("TagSpecification")
-        tags = tags[0] if isinstance(tags, list) and len(tags) == 1 else tags
-        tags = (tags or {}).get("Tag", [])
-        tags = {t["Key"]: t["Value"] for t in tags}
+        tags = add_tag_specification(self._get_multi_param("TagSpecification"))
         vpn_connection = self.ec2_backend.create_vpn_connection(
             type, cgw_id, vpn_gateway_id=vgw_id, transit_gateway_id=tgw_id, static_routes_only=static_routes, tags=tags
         )
@@ -170,7 +167,7 @@ CREATE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
     <type>ipsec.1</type>
     <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-    <vpnGatewayId> {{ vpn_connection.vpn_gateway_id or '' }} </vpnGatewayId>
+    <vpnGatewayId>{{ vpn_connection.vpn_gateway_id or '' }}</vpnGatewayId>
     {% if vpn_connection.transit_gateway_id %}
     <transitGatewayId>{{ vpn_connection.transit_gateway_id }}</transitGatewayId>
     {% endif %}
@@ -218,7 +215,7 @@ DESCRIBE_VPN_CONNECTION_RESPONSE = """
       </customerGatewayConfiguration>
       <type>ipsec.1</type>
       <customerGatewayId>{{ vpn_connection.customer_gateway_id }}</customerGatewayId>
-      <vpnGatewayId> {{ vpn_connection.vpn_gateway_id or '' }} </vpnGatewayId>
+      <vpnGatewayId>{{ vpn_connection.vpn_gateway_id or '' }}</vpnGatewayId>
       {% if vpn_connection.transit_gateway_id %}
       <transitGatewayId>{{ vpn_connection.transit_gateway_id }}</transitGatewayId>
       {% endif %}

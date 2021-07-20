@@ -6256,7 +6256,7 @@ class TransitGatewayAttachmentBackend(object):
             ("transit-gateway-id", "transit_gateway_id")
         )
 
-        if not transit_gateways_attachment_ids == [] and transit_gateways_attachment_ids is not None:
+        if transit_gateways_attachment_ids:
             transit_gateways_attachments = [
                 transit_gateways_attachment
                 for transit_gateways_attachment in transit_gateways_attachments
