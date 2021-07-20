@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from moto.core.responses import BaseResponse
-from moto.ec2.utils import filters_from_querystring
+from moto.ec2.utils import filters_from_querystring, add_tag_specification
 
 
 class TransitGatewayAttachment(BaseResponse):
@@ -48,6 +48,57 @@ class TransitGatewayAttachment(BaseResponse):
         )
         template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_ATTACHMENTS)
         return template.render(transit_gateway_attachments=transit_gateway_attachments)
+
+    def create_transit_gateway_peering_attachment(self):
+        peer_account_id = self._get_param("PeerAccountId")
+        peer_region = self._get_param("PeerRegion")
+        peer_transit_gateway_id = self._get_param("PeerTransitGatewayId")
+        transit_gateway_id = self._get_param("TransitGatewayId")
+        tags = add_tag_specification(self._get_multi_param("TagSpecification"))
+        transit_gateway_peering_attachment = self.ec2_backend.create_transit_gateway_peering_attachment(transit_gateway_id, peer_transit_gateway_id, peer_region, peer_account_id, tags)
+        template = self.response_template(CREATE_TRANSIT_GATEWAY_PEERING_ATTACHMENT)
+        return template.render(transit_gateway_peering_attachment=transit_gateway_peering_attachment)
+
+    def describe_transit_gateway_peering_attachments(self):
+        transit_gateways_attachment_ids = self._get_multi_param("TransitGatewayAttachmentIds")
+        filters = filters_from_querystring(self.querystring)
+        max_results = self._get_param("MaxResults")
+        transit_gateway_peering_attachments = self.ec2_backend.describe_transit_gateway_peering_attachments(
+            transit_gateways_attachment_ids=transit_gateways_attachment_ids,
+            filters=filters,
+            max_results=max_results
+        )
+        template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS)
+        return template.render(transit_gateway_peering_attachments=transit_gateway_peering_attachments)
+
+
+CREATE_TRANSIT_GATEWAY_PEERING_ATTACHMENT = """<CreateTransitGatewayPeeringAttachment xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+        <requestId>9b5766ac-2af6-4b92-9a8a-4d74ae46ae79</requestId>
+        <transitGatewayPeeringAttachment>
+            <createTime>{{ transit_gateway_peering_attachment.create_time }}</createTime>
+            <state>{{ transit_gateway_peering_attachment.state }}</state>
+            <accepterTgwInfo>
+                <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.owner_id or '' }}</ownerId>
+                <region>{{ transit_gateway_peering_attachment.accepter_tgw_info.region or '' }}</region>
+                <transitGatewayId>{{ transit_gateway_peering_attachment.accepter_tgw_info.transitGatewayId or '' }}</transitGatewayId>
+            </accepterTgwInfo>
+            <requesterTgwInfo>
+                <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.owner_id or '' }}</ownerId>
+                <region>{{ transit_gateway_peering_attachment.requester_tgw_info.region or '' }}</region>
+                <transitGatewayId>{{ transit_gateway_peering_attachment.requester_tgw_info.transitGatewayId or '' }}</transitGatewayId>
+            </requesterTgwInfo>
+            <status>{{ transit_gateway_peering_attachment.status.code }}</status>
+            <tagSet>
+            {% for tag in transit_gateway_peering_attachment.get_tags() %}
+                <item>
+                    <key>{{ tag.key }}</key>
+                    <value>{{ tag.value }}</value>
+                </item>
+            {% endfor %}
+            </tagSet>
+            <transitGatewayAttachmentId>{{ transit_gateway_peering_attachment.id }}</transitGatewayAttachmentId>
+    </transitGatewayPeeringAttachment>
+</CreateTransitGatewayPeeringAttachment>"""
 
 
 CREATE_TRANSIT_GATEWAY_VPC_ATTACHMENT = """<CreateTransitGatewayVpcAttachmentResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
@@ -146,4 +197,38 @@ DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayVpcAttachme
         {% endfor %}
     </transitGatewayVpcAttachments>
 </DescribeTransitGatewayVpcAttachmentsResponse>
+"""
+
+
+DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayPeeringAttachments xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+        <requestId>bebc9670-0205-4f28-ad89-049c97e46633</requestId>
+        <transitGatewayPeeringAttachments>
+        {% for transit_gateway_peering_attachment in transit_gateway_peering_attachments %}
+            <item>
+                <createTime>{{ transit_gateway_peering_attachment.create_time }}</createTime>
+                <state>{{ transit_gateway_peering_attachment.state }}</state>
+                <accepterTgwInfo>
+                    <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.owner_id or '' }}</ownerId>
+                    <region>{{ transit_gateway_peering_attachment.accepter_tgw_info.region or '' }}</region>
+                    <transitGatewayId>{{ transit_gateway_peering_attachment.accepter_tgw_info.transitGatewayId or '' }}</transitGatewayId>
+                </accepterTgwInfo>
+                <requesterTgwInfo>
+                    <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.owner_id or '' }}</ownerId>
+                    <region>{{ transit_gateway_peering_attachment.requester_tgw_info.region or '' }}</region>
+                    <transitGatewayId>{{ transit_gateway_peering_attachment.requester_tgw_info.transitGatewayId or '' }}</transitGatewayId>
+                </requesterTgwInfo>
+                <status>{{ transit_gateway_peering_attachment.status.code }}</status>
+                <tagSet>
+                {% for tag in transit_gateway_peering_attachment.get_tags() %}
+                    <item>
+                        <key>{{ tag.key }}</key>
+                        <value>{{ tag.value }}</value>
+                    </item>
+                {% endfor %}
+                </tagSet>
+                <transitGatewayAttachmentId>{{ transit_gateway_peering_attachment.id }}</transitGatewayAttachmentId>
+            </item>
+        {% endfor %}
+    </transitGatewayPeeringAttachments>
+</DescribeTransitGatewayPeeringAttachments>
 """

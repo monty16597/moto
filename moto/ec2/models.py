@@ -3338,7 +3338,7 @@ class VPCBackend(object):
         }
 
 
-class VPCPeeringConnectionStatus(object):
+class PeeringConnectionStatus(object):
     def __init__(self, code="initiating-request", message=""):
         self.code = code
         self.message = message
@@ -3369,7 +3369,7 @@ class VPCPeeringConnection(TaggedEC2Resource, CloudFormationModel):
         self.id = vpc_pcx_id
         self.vpc = vpc
         self.peer_vpc = peer_vpc
-        self._status = VPCPeeringConnectionStatus()
+        self._status = PeeringConnectionStatus()
 
     @staticmethod
     def cloudformation_name_type():
@@ -6218,6 +6218,43 @@ class TransitGatewayVpcAttachment(TransitGatewayAttachment):
         self.options = merge_multiple_dicts(self.DEFAULT_OPTIONS, options or {})
 
 
+class TransitGatewayPeeringAttachment(TransitGatewayAttachment):
+
+    def __init__(
+        self,
+        backend,
+        transit_gateway_id=None,
+        peer_transit_gateway_id=None,
+        peer_region=None,
+        peer_account_id=None,
+        tags=None
+    ):
+
+        super().__init__(
+            backend=backend,
+            transit_gateway_id=transit_gateway_id,
+            resource_id=peer_transit_gateway_id,
+            resource_type="peering",
+            tags=tags
+        )
+
+        self.accepter_tgw_info = {
+            "ownerId": peer_account_id,
+            "region": peer_region,
+            "transitGatewayId": peer_transit_gateway_id
+        }
+        self.requester_tgw_info = {
+            "ownerId": self.owner_id,
+            "region": "us-east-1",
+            "transitGatewayId": transit_gateway_id
+        }
+        self.status = PeeringConnectionStatus()
+
+    @property
+    def owner_id(self):
+        return ACCOUNT_ID
+
+
 class TransitGatewayAttachmentBackend(object):
     def __init__(self):
         self.transit_gateways_attachments = {}
@@ -6300,6 +6337,53 @@ class TransitGatewayAttachmentBackend(object):
                     ]
 
         return transit_gateways_attachments
+
+    def create_transit_gateway_peering_attachment(self, transit_gateway_id, peer_transit_gateway_id, peer_region, peer_account_id, tags):
+        transit_gateway_peering_attachment = TransitGatewayPeeringAttachment(
+            self,
+            transit_gateway_id=transit_gateway_id,
+            peer_transit_gateway_id=peer_transit_gateway_id,
+            peer_region=peer_region,
+            peer_account_id=peer_account_id,
+            tags=tags
+        )
+        transit_gateway_peering_attachment.status.pending()
+        transit_gateway_peering_attachment.state = "pendingAcceptance"
+        self.transit_gateways_attachments[transit_gateway_peering_attachment.id] = transit_gateway_peering_attachment
+        return transit_gateway_peering_attachment
+
+    def describe_transit_gateway_peering_attachments(self, transit_gateways_attachment_ids=None, filters=None, max_results=0):
+        transit_gateways_attachments = self.transit_gateways_attachments.values()
+
+        attr_pairs = (
+            ("state", "state"),
+            ("transit-gateway-attachment-id", "id"),
+            ("local-owner-id", "requester_tgw_info", "ownerId"),
+            ("remote-owner-id", "accepter_tgw_info", "ownerId"),
+            ("vpc-id", "resource_id")
+        )
+
+        if not transit_gateways_attachment_ids == [] and transit_gateways_attachment_ids is not None:
+            transit_gateways_attachments = [
+                transit_gateways_attachment
+                for transit_gateways_attachment in transit_gateways_attachments
+                if transit_gateways_attachment.id in transit_gateways_attachment_ids
+            ]
+
+        result = []
+
+        if filters:
+            for attrs in attr_pairs:
+                values = filters.get(attrs[0]) or None
+                if values is not None:
+                    for transit_gateways_attachment in transit_gateways_attachments:
+                        if getattr(transit_gateways_attachment, "resource_type") == "peering":
+                            if len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values:
+                                result.append(transit_gateways_attachment)
+                            elif len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1])[attrs[2]] in values:
+                                result.append(transit_gateways_attachment)
+
+        return result
 
 
 class NatGateway(CloudFormationModel):
