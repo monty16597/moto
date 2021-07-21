@@ -56,8 +56,8 @@ class TransitGatewayAttachment(BaseResponse):
         transit_gateway_id = self._get_param("TransitGatewayId")
         tags = add_tag_specification(self._get_multi_param("TagSpecification"))
         transit_gateway_peering_attachment = self.ec2_backend.create_transit_gateway_peering_attachment(transit_gateway_id, peer_transit_gateway_id, peer_region, peer_account_id, tags)
-        template = self.response_template(CREATE_TRANSIT_GATEWAY_PEERING_ATTACHMENT)
-        return template.render(transit_gateway_peering_attachment=transit_gateway_peering_attachment)
+        template = self.response_template(TRANSIT_GATEWAY_PEERING_ATTACHMENT)
+        return template.render(method_name="CreateTransitGatewayPeeringAttachment", transit_gateway_peering_attachment=transit_gateway_peering_attachment)
 
     def describe_transit_gateway_peering_attachments(self):
         transit_gateways_attachment_ids = self._get_multi_param("TransitGatewayAttachmentIds")
@@ -68,22 +68,46 @@ class TransitGatewayAttachment(BaseResponse):
             filters=filters,
             max_results=max_results
         )
-        template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS)
+        template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_PEERING_ATTACHMENTS)
         return template.render(transit_gateway_peering_attachments=transit_gateway_peering_attachments)
 
+    def accept_transit_gateway_peering_attachment(self):
+        transit_gateway_attachment_id = self._get_param("TransitGatewayAttachmentId")
+        transit_gateway_peering_attachment = self.ec2_backend.accept_transit_gateway_peering_attachment(
+            transit_gateway_attachment_id=transit_gateway_attachment_id
+        )
+        template = self.response_template(TRANSIT_GATEWAY_PEERING_ATTACHMENT)
+        return template.render(method_name="AcceptTransitGatewayPeeringAttachment", transit_gateway_peering_attachment=transit_gateway_peering_attachment)
 
-CREATE_TRANSIT_GATEWAY_PEERING_ATTACHMENT = """<CreateTransitGatewayPeeringAttachment xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+    def delete_transit_gateway_peering_attachment(self):
+        transit_gateway_attachment_id = self._get_param("TransitGatewayAttachmentId")
+        transit_gateway_peering_attachment = self.ec2_backend.delete_transit_gateway_peering_attachment(
+            transit_gateway_attachment_id=transit_gateway_attachment_id
+        )
+        template = self.response_template(TRANSIT_GATEWAY_PEERING_ATTACHMENT)
+        return template.render(method_name="DeleteTransitGatewayPeeringAttachment", transit_gateway_peering_attachment=transit_gateway_peering_attachment)
+
+    def reject_transit_gateway_peering_attachment(self):
+        transit_gateway_attachment_id = self._get_param("TransitGatewayAttachmentId")
+        transit_gateway_peering_attachment = self.ec2_backend.reject_transit_gateway_peering_attachment(
+            transit_gateway_attachment_id=transit_gateway_attachment_id
+        )
+        template = self.response_template(TRANSIT_GATEWAY_PEERING_ATTACHMENT)
+        return template.render(method_name="RejectTransitGatewayPeeringAttachment", transit_gateway_peering_attachment=transit_gateway_peering_attachment)
+
+
+TRANSIT_GATEWAY_PEERING_ATTACHMENT = """<{{ method_name }} xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
         <requestId>9b5766ac-2af6-4b92-9a8a-4d74ae46ae79</requestId>
         <transitGatewayPeeringAttachment>
             <createTime>{{ transit_gateway_peering_attachment.create_time }}</createTime>
             <state>{{ transit_gateway_peering_attachment.state }}</state>
             <accepterTgwInfo>
-                <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.owner_id or '' }}</ownerId>
+                <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.ownerId or '' }}</ownerId>
                 <region>{{ transit_gateway_peering_attachment.accepter_tgw_info.region or '' }}</region>
                 <transitGatewayId>{{ transit_gateway_peering_attachment.accepter_tgw_info.transitGatewayId or '' }}</transitGatewayId>
             </accepterTgwInfo>
             <requesterTgwInfo>
-                <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.owner_id or '' }}</ownerId>
+                <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.ownerId or '' }}</ownerId>
                 <region>{{ transit_gateway_peering_attachment.requester_tgw_info.region or '' }}</region>
                 <transitGatewayId>{{ transit_gateway_peering_attachment.requester_tgw_info.transitGatewayId or '' }}</transitGatewayId>
             </requesterTgwInfo>
@@ -98,7 +122,7 @@ CREATE_TRANSIT_GATEWAY_PEERING_ATTACHMENT = """<CreateTransitGatewayPeeringAttac
             </tagSet>
             <transitGatewayAttachmentId>{{ transit_gateway_peering_attachment.id }}</transitGatewayAttachmentId>
     </transitGatewayPeeringAttachment>
-</CreateTransitGatewayPeeringAttachment>"""
+</{{ method_name }}>"""
 
 
 CREATE_TRANSIT_GATEWAY_VPC_ATTACHMENT = """<CreateTransitGatewayVpcAttachmentResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
@@ -200,7 +224,7 @@ DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayVpcAttachme
 """
 
 
-DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayPeeringAttachments xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+DESCRIBE_TRANSIT_GATEWAY_PEERING_ATTACHMENTS = """<DescribeTransitGatewayPeeringAttachments xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
         <requestId>bebc9670-0205-4f28-ad89-049c97e46633</requestId>
         <transitGatewayPeeringAttachments>
         {% for transit_gateway_peering_attachment in transit_gateway_peering_attachments %}
@@ -208,12 +232,12 @@ DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayPeeringAtta
                 <createTime>{{ transit_gateway_peering_attachment.create_time }}</createTime>
                 <state>{{ transit_gateway_peering_attachment.state }}</state>
                 <accepterTgwInfo>
-                    <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.owner_id or '' }}</ownerId>
+                    <ownerId>{{ transit_gateway_peering_attachment.accepter_tgw_info.ownerId or '' }}</ownerId>
                     <region>{{ transit_gateway_peering_attachment.accepter_tgw_info.region or '' }}</region>
                     <transitGatewayId>{{ transit_gateway_peering_attachment.accepter_tgw_info.transitGatewayId or '' }}</transitGatewayId>
                 </accepterTgwInfo>
                 <requesterTgwInfo>
-                    <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.owner_id or '' }}</ownerId>
+                    <ownerId>{{ transit_gateway_peering_attachment.requester_tgw_info.ownerId or '' }}</ownerId>
                     <region>{{ transit_gateway_peering_attachment.requester_tgw_info.region or '' }}</region>
                     <transitGatewayId>{{ transit_gateway_peering_attachment.requester_tgw_info.transitGatewayId or '' }}</transitGatewayId>
                 </requesterTgwInfo>

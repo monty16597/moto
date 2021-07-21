@@ -6320,7 +6320,7 @@ class TransitGatewayAttachmentBackend(object):
             ("vpc-id", "resource_id")
         )
 
-        if not transit_gateways_attachment_ids == [] and transit_gateways_attachment_ids is not None:
+        if transit_gateways_attachment_ids:
             transit_gateways_attachments = [
                 transit_gateways_attachment
                 for transit_gateways_attachment in transit_gateways_attachments
@@ -6348,7 +6348,7 @@ class TransitGatewayAttachmentBackend(object):
             tags=tags
         )
         transit_gateway_peering_attachment.status.pending()
-        transit_gateway_peering_attachment.state = "pendingAcceptance"
+        transit_gateway_peering_attachment.state = "available"
         self.transit_gateways_attachments[transit_gateway_peering_attachment.id] = transit_gateway_peering_attachment
         return transit_gateway_peering_attachment
 
@@ -6363,7 +6363,7 @@ class TransitGatewayAttachmentBackend(object):
             ("vpc-id", "resource_id")
         )
 
-        if not transit_gateways_attachment_ids == [] and transit_gateways_attachment_ids is not None:
+        if transit_gateways_attachment_ids:
             transit_gateways_attachments = [
                 transit_gateways_attachment
                 for transit_gateways_attachment in transit_gateways_attachments
@@ -6371,19 +6371,34 @@ class TransitGatewayAttachmentBackend(object):
             ]
 
         result = []
-
         if filters:
             for attrs in attr_pairs:
                 values = filters.get(attrs[0]) or None
                 if values is not None:
                     for transit_gateways_attachment in transit_gateways_attachments:
-                        if getattr(transit_gateways_attachment, "resource_type") == "peering":
-                            if len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values:
-                                result.append(transit_gateways_attachment)
-                            elif len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1])[attrs[2]] in values:
-                                result.append(transit_gateways_attachment)
+                        if (len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values) or \
+                           (len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
+                            result.append(transit_gateways_attachment)
 
-        return result
+        return transit_gateways_attachments if not filters else result
+
+    def accept_transit_gateway_peering_attachment(self, transit_gateway_attachment_id):
+        transit_gateway_attachment = self.transit_gateways_attachments[transit_gateway_attachment_id]
+        transit_gateway_attachment.state = "available"
+        transit_gateway_attachment.status.accept()
+        return transit_gateway_attachment
+
+    def reject_transit_gateway_peering_attachment(self, transit_gateway_attachment_id):
+        transit_gateway_attachment = self.transit_gateways_attachments[transit_gateway_attachment_id]
+        transit_gateway_attachment.state = "rejected"
+        transit_gateway_attachment.status.reject()
+        return transit_gateway_attachment
+
+    def delete_transit_gateway_peering_attachment(self, transit_gateway_attachment_id):
+        transit_gateway_attachment = self.transit_gateways_attachments[transit_gateway_attachment_id]
+        transit_gateway_attachment.state = "deleted"
+        transit_gateway_attachment.status.deleted()
+        return transit_gateway_attachment
 
 
 class NatGateway(CloudFormationModel):
