@@ -170,6 +170,7 @@ from .utils import (
     tag_filter_matches,
     rsa_public_key_parse,
     rsa_public_key_fingerprint,
+    describe_tag_filter
 )
 
 
@@ -6227,7 +6228,8 @@ class TransitGatewayPeeringAttachment(TransitGatewayAttachment):
         peer_transit_gateway_id=None,
         peer_region=None,
         peer_account_id=None,
-        tags=None
+        tags=None,
+        region_name=None
     ):
 
         super().__init__(
@@ -6245,7 +6247,7 @@ class TransitGatewayPeeringAttachment(TransitGatewayAttachment):
         }
         self.requester_tgw_info = {
             "ownerId": self.owner_id,
-            "region": "us-east-1",
+            "region": region_name,
             "transitGatewayId": transit_gateway_id
         }
         self.status = PeeringConnectionStatus()
@@ -6345,22 +6347,22 @@ class TransitGatewayAttachmentBackend(object):
             peer_transit_gateway_id=peer_transit_gateway_id,
             peer_region=peer_region,
             peer_account_id=peer_account_id,
-            tags=tags
+            tags=tags,
+            region_name=self.region_name
         )
-        transit_gateway_peering_attachment.status.pending()
+        transit_gateway_peering_attachment.status.accept()
         transit_gateway_peering_attachment.state = "available"
         self.transit_gateways_attachments[transit_gateway_peering_attachment.id] = transit_gateway_peering_attachment
         return transit_gateway_peering_attachment
 
     def describe_transit_gateway_peering_attachments(self, transit_gateways_attachment_ids=None, filters=None, max_results=0):
-        transit_gateways_attachments = self.transit_gateways_attachments.values()
+        transit_gateways_attachments = list(self.transit_gateways_attachments.values())
 
         attr_pairs = (
             ("state", "state"),
             ("transit-gateway-attachment-id", "id"),
             ("local-owner-id", "requester_tgw_info", "ownerId"),
             ("remote-owner-id", "accepter_tgw_info", "ownerId"),
-            ("vpc-id", "resource_id")
         )
 
         if transit_gateways_attachment_ids:
@@ -6370,17 +6372,17 @@ class TransitGatewayAttachmentBackend(object):
                 if transit_gateways_attachment.id in transit_gateways_attachment_ids
             ]
 
-        result = []
         if filters:
             for attrs in attr_pairs:
                 values = filters.get(attrs[0]) or None
                 if values is not None:
                     for transit_gateways_attachment in transit_gateways_attachments:
-                        if (len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values) or \
-                           (len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
-                            result.append(transit_gateways_attachment)
-
-        return transit_gateways_attachments if not filters else result
+                        if (attrs[1] not in transit_gateways_attachment) or \
+                           (len(attrs) <= 2 and not getattr(transit_gateways_attachment, attrs[1]) in values) or \
+                           (len(attrs) == 3 and not getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
+                            del transit_gateways_attachments[transit_gateways_attachments.index(transit_gateways_attachment)]
+        transit_gateways_attachments = describe_tag_filter(filters, transit_gateways_attachments)
+        return transit_gateways_attachments
 
     def accept_transit_gateway_peering_attachment(self, transit_gateway_attachment_id):
         transit_gateway_attachment = self.transit_gateways_attachments[transit_gateway_attachment_id]
