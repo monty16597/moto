@@ -6372,17 +6372,19 @@ class TransitGatewayAttachmentBackend(object):
                 if transit_gateways_attachment.id in transit_gateways_attachment_ids
             ]
 
+        result = transit_gateways_attachments
         if filters:
             for attrs in attr_pairs:
                 values = filters.get(attrs[0]) or None
                 if values is not None:
+                    result = []
                     for transit_gateways_attachment in transit_gateways_attachments:
-                        if (attrs[1] not in transit_gateways_attachment) or \
-                           (len(attrs) <= 2 and not getattr(transit_gateways_attachment, attrs[1]) in values) or \
-                           (len(attrs) == 3 and not getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
-                            del transit_gateways_attachments[transit_gateways_attachments.index(transit_gateways_attachment)]
-        transit_gateways_attachments = describe_tag_filter(filters, transit_gateways_attachments)
-        return transit_gateways_attachments
+                        if (len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values) or \
+                           (len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
+                            # del transit_gateways_attachments[transit_gateways_attachments.index(transit_gateways_attachment)]
+                            result.append(transit_gateways_attachment)
+            result = describe_tag_filter(filters, result)
+        return result
 
     def accept_transit_gateway_peering_attachment(self, transit_gateway_attachment_id):
         transit_gateway_attachment = self.transit_gateways_attachments[transit_gateway_attachment_id]
