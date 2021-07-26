@@ -6431,7 +6431,6 @@ class TransitGatewayAttachmentBackend(object):
                     for transit_gateways_attachment in transit_gateways_attachments:
                         if (len(attrs) <= 2 and getattr(transit_gateways_attachment, attrs[1]) in values) or \
                            (len(attrs) == 3 and getattr(transit_gateways_attachment, attrs[1]).get(attrs[2]) in values):
-                            # del transit_gateways_attachments[transit_gateways_attachments.index(transit_gateways_attachment)]
                             result.append(transit_gateways_attachment)
             result = describe_tag_filter(filters, result)
         return result
