@@ -699,4 +699,5 @@ def describe_tag_filter(filters, instances):
                         need_delete = True
             if need_delete:
                 result.remove(instance)
+                break
     return result
