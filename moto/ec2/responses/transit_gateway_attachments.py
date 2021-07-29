@@ -20,31 +20,37 @@ class TransitGatewayAttachment(BaseResponse):
             tags=tags,
             vpc_id=vpc_id,
             subnet_ids=subnet_ids,
-            options=options
+            options=options,
         )
         template = self.response_template(CREATE_TRANSIT_GATEWAY_VPC_ATTACHMENT)
         return template.render(transit_gateway_attachment=transit_gateway_attachment)
 
     def describe_transit_gateway_vpc_attachments(self):
-        transit_gateways_attachment_ids = self._get_multi_param("TransitGatewayAttachmentIds")
+        transit_gateways_attachment_ids = self._get_multi_param(
+            "TransitGatewayAttachmentIds"
+        )
         filters = filters_from_querystring(self.querystring)
         max_results = self._get_param("MaxResults")
         transit_gateway_vpc_attachments = self.ec2_backend.describe_transit_gateway_vpc_attachments(
             transit_gateways_attachment_ids=transit_gateways_attachment_ids,
             filters=filters,
-            max_results=max_results
+            max_results=max_results,
         )
         template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS)
-        return template.render(transit_gateway_vpc_attachments=transit_gateway_vpc_attachments)
+        return template.render(
+            transit_gateway_vpc_attachments=transit_gateway_vpc_attachments
+        )
 
     def describe_transit_gateway_attachments(self):
-        transit_gateways_attachment_ids = self._get_multi_param("TransitGatewayAttachmentIds")
+        transit_gateways_attachment_ids = self._get_multi_param(
+            "TransitGatewayAttachmentIds"
+        )
         filters = filters_from_querystring(self.querystring)
         max_results = self._get_param("MaxResults")
         transit_gateway_attachments = self.ec2_backend.describe_transit_gateway_attachments(
             transit_gateways_attachment_ids=transit_gateways_attachment_ids,
             filters=filters,
-            max_results=max_results
+            max_results=max_results,
         )
         template = self.response_template(DESCRIBE_TRANSIT_GATEWAY_ATTACHMENTS)
         return template.render(transit_gateway_attachments=transit_gateway_attachments)
@@ -105,7 +111,7 @@ DESCRIBE_TRANSIT_GATEWAY_ATTACHMENTS = """<DescribeTransitGatewayAttachmentsResp
             </tagSet>
             <transitGatewayAttachmentId>{{ transit_gateway_attachment.id }}</transitGatewayAttachmentId>
             <transitGatewayId>{{ transit_gateway_attachment.transit_gateway_id }}</transitGatewayId>
-            <transitGatewayOwnerId>074255357339</transitGatewayOwnerId>
+            <transitGatewayOwnerId>{{ transit_gateway_attachment.resource_owner_id }}</transitGatewayOwnerId>
         </item>
         {% endfor %}
     </transitGatewayAttachments>
@@ -127,7 +133,7 @@ DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayVpcAttachme
                 <state>{{ transit_gateway_vpc_attachment.state }}</state>
                 <subnetIds>
                 {% for id in transit_gateway_vpc_attachment.subnet_ids %}
-                    <item>id</item>
+                    <item>{{ id }}</item>
                 {% endfor %}
                 </subnetIds>
                 <tagSet>
@@ -141,7 +147,7 @@ DESCRIBE_TRANSIT_GATEWAY_VPC_ATTACHMENTS = """<DescribeTransitGatewayVpcAttachme
                 <transitGatewayAttachmentId>{{ transit_gateway_vpc_attachment.id }}</transitGatewayAttachmentId>
                 <transitGatewayId>{{ transit_gateway_vpc_attachment.transit_gateway_id }}</transitGatewayId>
                 <vpcId>{{ transit_gateway_vpc_attachment.vpc_id }}</vpcId>
-                <vpcOwnerId>074255357339</vpcOwnerId>
+                <vpcOwnerId>{{ transit_gateway_vpc_attachment.resource_owner_id }}</vpcOwnerId>
             </item>
         {% endfor %}
     </transitGatewayVpcAttachments>

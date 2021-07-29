@@ -10,7 +10,6 @@ from enum import Enum, unique
 from operator import lt, le, eq, ge, gt
 
 from boto3 import Session
-from six import string_types
 
 from moto.core.exceptions import JsonRESTError
 from moto.core import ACCOUNT_ID, BaseBackend, CloudFormationModel, BaseModel
@@ -247,9 +246,10 @@ class Rule(CloudFormationModel):
 
 
 class EventBus(CloudFormationModel):
-    def __init__(self, region_name, name):
+    def __init__(self, region_name, name, tags=None):
         self.region = region_name
         self.name = name
+        self.tags = tags or []
 
         self._permissions = {}
 
@@ -622,6 +622,7 @@ class Destination(BaseModel):
         description,
         connection_arn,
         invocation_endpoint,
+        invocation_rate_limit_per_second,
         http_method,
     ):
         self.uuid = uuid4()
@@ -630,6 +631,7 @@ class Destination(BaseModel):
         self.description = description
         self.connection_arn = connection_arn
         self.invocation_endpoint = invocation_endpoint
+        self.invocation_rate_limit_per_second = invocation_rate_limit_per_second
         self.creation_time = unix_time(datetime.utcnow())
         self.http_method = http_method
         self.state = "ACTIVE"
@@ -640,17 +642,51 @@ class Destination(BaseModel):
             self.region, ACCOUNT_ID, self.name, self.uuid
         )
 
+    def describe(self):
+        """
+        Describes the Destination object as a dict
+        Docs:
+            Response Syntax in
+            https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_DescribeApiDestination.html
+
+        Something to consider:
+            - The response also has [InvocationRateLimitPerSecond] which was not
+            available when implementing this method
+
+        Returns:
+            dict
+        """
+        return {
+            "ApiDestinationArn": self.arn,
+            "ApiDestinationState": self.state,
+            "ConnectionArn": self.connection_arn,
+            "CreationTime": self.creation_time,
+            "Description": self.description,
+            "HttpMethod": self.http_method,
+            "InvocationEndpoint": self.invocation_endpoint,
+            "InvocationRateLimitPerSecond": self.invocation_rate_limit_per_second,
+            "LastModifiedTime": self.creation_time,
+            "Name": self.name,
+        }
+
+    def describe_short(self):
+        return {
+            "ApiDestinationArn": self.arn,
+            "ApiDestinationState": self.state,
+            "CreationTime": self.creation_time,
+            "LastModifiedTime": self.creation_time,
+        }
+
 
 class EventPattern:
     def __init__(self, filter):
         self._filter = self._load_event_pattern(filter)
+        self._filter_raw = filter
         if not self._validate_event_pattern(self._filter):
             raise InvalidEventPatternException
 
     def __str__(self):
-        if self._filter:
-            return json.dumps(self._filter)
-        return str()
+        return self._filter_raw or str()
 
     def _load_event_pattern(self, pattern):
         try:
@@ -696,7 +732,7 @@ class EventPattern:
         return all(nested_filter_matches + filter_list_matches)
 
     def _does_item_match_filters(self, item, filters):
-        allowed_values = [value for value in filters if isinstance(value, string_types)]
+        allowed_values = [value for value in filters if isinstance(value, str)]
         allowed_values_match = item in allowed_values if allowed_values else True
         named_filter_matches = [
             self._does_item_match_named_filter(item, filter)
@@ -1089,7 +1125,7 @@ class EventsBackend(BaseBackend):
 
         return event_bus
 
-    def create_event_bus(self, name, event_source_name=None):
+    def create_event_bus(self, name, event_source_name=None, tags=None):
         if name in self.event_buses:
             raise JsonRESTError(
                 "ResourceAlreadyExistsException",
@@ -1107,7 +1143,10 @@ class EventsBackend(BaseBackend):
                 "Event source {} does not exist.".format(event_source_name),
             )
 
-        self.event_buses[name] = EventBus(self.region_name, name)
+        event_bus = EventBus(self.region_name, name, tags=tags)
+        self.event_buses[name] = event_bus
+        if tags:
+            self.tagger.tag_resource(event_bus.arn, tags)
 
         return self.event_buses[name]
 
@@ -1126,30 +1165,38 @@ class EventsBackend(BaseBackend):
             raise JsonRESTError(
                 "ValidationException", "Cannot delete event bus default."
             )
-        self.event_buses.pop(name, None)
+        event_bus = self.event_buses.pop(name, None)
+        if event_bus:
+            self.tagger.delete_all_tags_for_resource(event_bus.arn)
 
     def list_tags_for_resource(self, arn):
         name = arn.split("/")[-1]
-        if name in self.rules:
-            return self.tagger.list_tags_for_resource(self.rules[name].arn)
+        registries = [self.rules, self.event_buses]
+        for registry in registries:
+            if name in registry:
+                return self.tagger.list_tags_for_resource(registry[name].arn)
         raise ResourceNotFoundException(
             "Rule {0} does not exist on EventBus default.".format(name)
         )
 
     def tag_resource(self, arn, tags):
         name = arn.split("/")[-1]
-        if name in self.rules:
-            self.tagger.tag_resource(self.rules[name].arn, tags)
-            return {}
+        registries = [self.rules, self.event_buses]
+        for registry in registries:
+            if name in registry:
+                self.tagger.tag_resource(registry[name].arn, tags)
+                return {}
         raise ResourceNotFoundException(
             "Rule {0} does not exist on EventBus default.".format(name)
         )
 
     def untag_resource(self, arn, tag_names):
         name = arn.split("/")[-1]
-        if name in self.rules:
-            self.tagger.untag_resource_using_names(self.rules[name].arn, tag_names)
-            return {}
+        registries = [self.rules, self.event_buses]
+        for registry in registries:
+            if name in registry:
+                self.tagger.untag_resource_using_names(registry[name].arn, tag_names)
+                return {}
         raise ResourceNotFoundException(
             "Rule {0} does not exist on EventBus default.".format(name)
         )
@@ -1391,6 +1438,18 @@ class EventsBackend(BaseBackend):
         self.connections[name] = connection
         return connection
 
+    def update_connection(self, *, name, **kwargs):
+        connection = self.connections.get(name)
+        if not connection:
+            raise ResourceNotFoundException(
+                "Connection '{}' does not exist.".format(name)
+            )
+
+        for attr, value in kwargs.items():
+            if value is not None and hasattr(connection, attr):
+                setattr(connection, attr, value)
+        return connection.describe_short()
+
     def list_connections(self):
         return self.connections.values()
 
@@ -1411,7 +1470,9 @@ class EventsBackend(BaseBackend):
         """
         connection = self.connections.get(name)
         if not connection:
-            raise ResourceNotFoundException("Connection '{}' does not exist.".format(name))
+            raise ResourceNotFoundException(
+                "Connection '{}' does not exist.".format(name)
+            )
 
         return connection.describe()
 
@@ -1432,31 +1493,105 @@ class EventsBackend(BaseBackend):
         """
         connection = self.connections.pop(name, None)
         if not connection:
-            raise ResourceNotFoundException("Connection '{}' does not exist.".format(name))
+            raise ResourceNotFoundException(
+                "Connection '{}' does not exist.".format(name)
+            )
 
         return connection.describe_short()
 
     def create_api_destination(
-        self, name, description, connection_arn, invocation_endpoint, http_method
+        self,
+        name,
+        description,
+        connection_arn,
+        invocation_endpoint,
+        invocation_rate_limit_per_second,
+        http_method,
     ):
+        """
+        Creates an API destination, which is an HTTP invocation endpoint configured as a target for events.
+        Docs:
+            https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_CreateApiDestination.html
 
+        Returns:
+            dict
+        """
         destination = Destination(
             name=name,
             region_name=self.region_name,
             description=description,
             connection_arn=connection_arn,
             invocation_endpoint=invocation_endpoint,
+            invocation_rate_limit_per_second=invocation_rate_limit_per_second,
             http_method=http_method,
         )
 
         self.destinations[name] = destination
-        return destination
+        return destination.describe_short()
 
     def list_api_destinations(self):
         return self.destinations.values()
 
     def describe_api_destination(self, name):
-        return self.destinations.get(name)
+        """
+        Retrieves details about an API destination.
+        Docs:
+            https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_DescribeApiDestination.html
+        Args:
+            name: The name of the API destination to retrieve.
+
+        Returns:
+            dict
+        """
+        destination = self.destinations.get(name)
+        if not destination:
+            raise ResourceNotFoundException(
+                "An api-destination '{}' does not exist.".format(name)
+            )
+        return destination.describe()
+
+    def update_api_destination(self, *, name, **kwargs):
+        """
+        Creates an API destination, which is an HTTP invocation endpoint configured as a target for events.
+        Docs:
+            https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_UpdateApiDestination.html
+
+        Returns:
+            dict
+        """
+        destination = self.destinations.get(name)
+        if not destination:
+            raise ResourceNotFoundException(
+                "An api-destination '{}' does not exist.".format(name)
+            )
+
+        for attr, value in kwargs.items():
+            if value is not None and hasattr(destination, attr):
+                setattr(destination, attr, value)
+        return destination.describe_short()
+
+    def delete_api_destination(self, name):
+        """
+        Deletes the specified API destination.
+        Docs:
+            https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_DeleteApiDestination.html
+
+        Args:
+            name: The name of the destination to delete.
+
+        Raises:
+            ResourceNotFoundException: When the destination is not present.
+
+        Returns:
+            dict
+
+        """
+        destination = self.destinations.pop(name, None)
+        if not destination:
+            raise ResourceNotFoundException(
+                "An api-destination '{}' does not exist.".format(name)
+            )
+        return {}
 
 
 events_backends = {}

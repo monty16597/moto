@@ -25,6 +25,7 @@ from moto.dynamodb2 import models as dynamodb2_models  # noqa
 from moto.ec2 import models as ec2_models
 from moto.ecr import models as ecr_models  # noqa
 from moto.ecs import models as ecs_models  # noqa
+from moto.efs import models as efs_models  # noqa
 from moto.elb import models as elb_models  # noqa
 from moto.elbv2 import models as elbv2_models  # noqa
 from moto.events import models as events_models  # noqa
@@ -504,6 +505,16 @@ class ResourceMap(collections_abc.Mapping):
                     key = s3_backend.get_object(bucket_name, name)
                     self._parsed_resources.update(json.loads(key.value))
 
+    def parse_ssm_parameter(self, value, value_type):
+        # The Value in SSM parameters is the SSM parameter path
+        # we need to use ssm_backend to retrieve the
+        # actual value from parameter store
+        parameter = ssm_backends[self._region_name].get_parameter(value, False)
+        actual_value = parameter.value
+        if value_type.find("List") > 0:
+            return actual_value.split(",")
+        return actual_value
+
     def load_parameters(self):
         parameter_slots = self._template.get("Parameters", {})
         for parameter_name, parameter in parameter_slots.items():
@@ -702,23 +713,27 @@ class ResourceMap(collections_abc.Mapping):
             for resource in remaining_resources.copy():
                 parsed_resource = self._parsed_resources.get(resource)
                 try:
-                    if parsed_resource and hasattr(parsed_resource, "delete"):
-                        parsed_resource.delete(self._region_name)
-                    else:
-                        if hasattr(parsed_resource, "physical_resource_id"):
-                            resource_name = parsed_resource.physical_resource_id
+                    if (
+                        not isinstance(parsed_resource, str)
+                        and parsed_resource is not None
+                    ):
+                        if parsed_resource and hasattr(parsed_resource, "delete"):
+                            parsed_resource.delete(self._region_name)
                         else:
-                            resource_name = None
+                            if hasattr(parsed_resource, "physical_resource_id"):
+                                resource_name = parsed_resource.physical_resource_id
+                            else:
+                                resource_name = None
 
-                        resource_json = self._resource_json_map[
-                            parsed_resource.logical_resource_id
-                        ]
+                            resource_json = self._resource_json_map[
+                                parsed_resource.logical_resource_id
+                            ]
 
-                        parse_and_delete_resource(
-                            resource_name, resource_json, self, self._region_name,
-                        )
+                            parse_and_delete_resource(
+                                resource_name, resource_json, self, self._region_name,
+                            )
 
-                    self._parsed_resources.pop(parsed_resource.logical_resource_id)
+                        self._parsed_resources.pop(parsed_resource.logical_resource_id)
                 except Exception as e:
                     # skip over dependency violations, and try again in a
                     # second pass

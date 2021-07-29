@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 import re
 from itertools import cycle
-import six
 import datetime
 import time
 import uuid
@@ -17,7 +16,7 @@ from moto.ec2 import ec2_backends
 from moto.ecs import ecs_backends
 from moto.logs import logs_backends
 
-from .exceptions import InvalidParameterValueException, InternalFailure, ClientException
+from .exceptions import InvalidParameterValueException, ClientException
 from .utils import (
     make_arn_for_compute_env,
     make_arn_for_job_queue,
@@ -783,6 +782,7 @@ class BatchBackend(BaseBackend):
                 "state": environment.state,
                 "type": environment.env_type,
                 "status": "VALID",
+                "statusReason": "Compute environment is available",
             }
             if environment.env_type == "MANAGED":
                 json_part["computeResources"] = environment.compute_resources
@@ -867,7 +867,7 @@ class BatchBackend(BaseBackend):
                     security_group_names=[],
                     instance_type=instance_type,
                     region_name=self.region_name,
-                    subnet_id=six.next(subnet_cycle),
+                    subnet_id=next(subnet_cycle),
                     key_name=compute_resources.get("ec2KeyPair", "AWS_OWNED"),
                     security_group_ids=compute_resources["securityGroupIds"],
                 )
@@ -899,9 +899,10 @@ class BatchBackend(BaseBackend):
             "type",
         ):
             if param not in cr:
-                raise InvalidParameterValueException(
-                    "computeResources must contain {0}".format(param)
-                )
+                pass  # commenting out invalid check below - values may be missing (tf-compat)
+                # raise InvalidParameterValueException(
+                #     "computeResources must contain {0}".format(param)
+                # )
         for profile in self.iam_backend.get_instance_profiles():
             if profile.arn == cr["instanceRole"]:
                 break
@@ -910,11 +911,11 @@ class BatchBackend(BaseBackend):
                 "could not find instanceRole {0}".format(cr["instanceRole"])
             )
 
-        if cr["maxvCpus"] < 0:
+        if int(cr["maxvCpus"]) < 0:
             raise InvalidParameterValueException("maxVCpus must be positive")
-        if cr["minvCpus"] < 0:
+        if int(cr["minvCpus"]) < 0:
             raise InvalidParameterValueException("minVCpus must be positive")
-        if cr["maxvCpus"] < cr["minvCpus"]:
+        if int(cr["maxvCpus"]) < int(cr["minvCpus"]):
             raise InvalidParameterValueException(
                 "maxVCpus must be greater than minvCpus"
             )
@@ -955,9 +956,6 @@ class BatchBackend(BaseBackend):
             raise InvalidParameterValueException(
                 "computeResources.type must be either EC2 | SPOT"
             )
-
-        if cr["type"] == "SPOT":
-            raise InternalFailure("SPOT NOT SUPPORTED YET")
 
     @staticmethod
     def find_min_instances_to_meet_vcpus(instance_types, target):
@@ -1028,7 +1026,8 @@ class BatchBackend(BaseBackend):
             if compute_env.env_type == "MANAGED":
                 # Delete compute environment
                 instance_ids = [instance.id for instance in compute_env.instances]
-                self.ec2_backend.terminate_instances(instance_ids)
+                if instance_ids:
+                    self.ec2_backend.terminate_instances(instance_ids)
 
     def update_compute_environment(
         self, compute_environment_name, state, compute_resources, service_role

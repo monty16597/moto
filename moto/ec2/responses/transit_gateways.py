@@ -8,9 +8,8 @@ class TransitGateways(BaseResponse):
         description = self._get_param("Description") or None
         options = self._get_multi_param_dict("Options")
         tags = self._get_multi_param("TagSpecification")
-        tags = tags[0] if isinstance(tags, list) and len(tags) == 1 else tags
-        tags = (tags or {}).get("Tag", [])
-        tags = {t["Key"]: t["Value"] for t in tags}
+        if tags:
+            tags = tags[0].get("Tag")
 
         transit_gateway = self.ec2_backend.create_transit_gateway(
             description=description, options=options, tags=tags
@@ -35,7 +34,9 @@ class TransitGateways(BaseResponse):
         description = self._get_param("Description") or None
         options = self._get_multi_param_dict("Options")
         transit_gateway = self.ec2_backend.modify_transit_gateway(
-            transit_gateway_id=transit_gateway_id, description=description, options=options
+            transit_gateway_id=transit_gateway_id,
+            description=description,
+            options=options,
         )
         template = self.response_template(MODIFY_TRANSIT_GATEWAY_RESPONSE)
         return template.render(transit_gateway=transit_gateway)

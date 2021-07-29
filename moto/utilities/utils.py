@@ -1,10 +1,13 @@
 import json
 import random
 import string
-import six
 
-if six.PY2:
-    from io import open
+
+def str2bool(v):
+    if v in ("yes", True, "true", "True", "TRUE", "t", "1"):
+        return True
+    elif v in ("no", False, "false", "False", "FALSE", "f", "0"):
+        return False
 
 
 def str2bool(v):
